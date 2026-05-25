@@ -105,10 +105,10 @@
         const data = await res.json();
         if (data.meilisearch === 'connected') {
           meiliStatus.className = 'status-badge online';
-          meiliStatusText.textContent = 'Meilisearch Conectado';
+          meiliStatusText.textContent = 'Servidor Conectado';
         } else {
           meiliStatus.className = 'status-badge offline';
-          meiliStatusText.textContent = 'Modo Local Activo';
+          meiliStatusText.textContent = 'Búsqueda Local Activa';
         }
       } catch {
         meiliStatus.className = 'status-badge offline';

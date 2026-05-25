@@ -1136,15 +1136,14 @@ def home(request: Request) -> HTMLResponse:
 
       <!-- Document list -->
       <section class="card" style="flex: 1;">
-        <div class="card-header-area">
+        <div class="card-header-area" style="margin-bottom: 16px;">
           <h2 class="card-title">Biblioteca</h2>
-          <button id="refreshDocs" class="btn-secondary btn-icon" title="Actualizar lista">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button id="refreshDocs" class="btn-secondary btn-icon" title="Actualizar lista" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 8px; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: block;">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
             </svg>
           </button>
         </div>
-        <p class="description-text" style="margin-bottom: 10px;">Biblioteca de documentos convertidos en el servidor.</p>
         
         <div class="scroll-list" id="docList">
           <p class="description-text" style="text-align: center; font-style: italic;">Cargando biblioteca...</p>
@@ -1157,8 +1156,8 @@ def home(request: Request) -> HTMLResponse:
       <!-- Search card -->
       <section class="card">
         <span class="pill-badge" style="width: fit-content; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.15); color: #c084fc;">Búsqueda Semántica</span>
-        <h2 class="card-title" style="margin-top: 8px;">Consultar Meilisearch</h2>
-        <p class="description-text">Busca en todos los fragmentos indexados de manera instantánea.</p>
+        <h2 class="card-title" style="margin-top: 8px;">Consultar</h2>
+        <p class="description-text">Busca de forma instantánea en todas las ordenanzas de la biblioteca.</p>
         
         <form id="searchForm" class="input-wrapper">
           <input id="query" name="query" type="text" placeholder="Palabras clave a buscar..." required>
@@ -1182,7 +1181,7 @@ def home(request: Request) -> HTMLResponse:
       <!-- Results Card -->
       <section class="card" style="flex: 1;">
         <h2 class="card-title">Resultados globales</h2>
-        <p class="description-text" style="margin-bottom: 10px;">Fragmentos relevantes encontrados en Meilisearch.</p>
+        <p class="description-text" style="margin-bottom: 10px;">Fragmentos más relevantes encontrados en los documentos.</p>
         
         <div class="results-container" id="searchResults">
           <p class="description-text" style="text-align: center; font-style: italic;">Escribe algo y presiona Buscar para consultar los índices.</p>
