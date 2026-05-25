@@ -168,116 +168,118 @@
     window.addEventListener('dragover', (e) => e.preventDefault());
     window.addEventListener('drop', (e) => e.preventDefault());
 
-    // Trigger file selection dialog on drop-zone click
-    dropZone.addEventListener('click', () => fileInput.click());
+    if (dropZone && fileInput && uploadButton) {
+      // Trigger file selection dialog on drop-zone click
+      dropZone.addEventListener('click', () => fileInput.click());
 
-    // Highlight drop-zone when dragging file over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-      }, false);
-    });
+      // Highlight drop-zone when dragging file over it
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        }, false);
+      });
 
-    ['dragleave', 'dragend', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-      }, false);
-    });
+      ['dragleave', 'dragend', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+        }, false);
+      });
 
-    // Handle dropped files
-    dropZone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      const files = dt.files;
-      if (files.length) {
-        fileInput.files = files;
-        updateDropZoneText(files);
-      }
-    });
-
-    // Handle manual file selection
-    fileInput.addEventListener('change', (e) => {
-      if (fileInput.files.length) {
-        updateDropZoneText(fileInput.files);
-      }
-    });
-
-    function updateDropZoneText(files) {
-      const names = Array.from(files).map(f => f.name);
-      const textSpan = dropZone.querySelector('.drop-zone-text');
-      if (names.length === 1) {
-        textSpan.innerHTML = `Listo para subir: <strong style="color: #60a5fa;">${escapeHtml(names[0])}</strong>`;
-      } else {
-        textSpan.innerHTML = `Listo para subir: <strong style="color: #60a5fa;">${names.length} archivos seleccionados</strong>`;
-      }
-    }
-
-    // Async upload function via Fetch
-    async function uploadSelectedFiles() {
-      const files = fileInput.files;
-      if (!files.length) {
-        uploadStatus.textContent = 'Selecciona o arrastra al menos un archivo.';
-        uploadStatus.style.color = 'var(--warning)';
-        return;
-      }
-
-      const formData = new FormData();
-      for (const file of files) {
-        formData.append('files', file);
-      }
-      formData.append('index_to_meili', 'true');
-
-      uploadButton.disabled = true;
-      uploadStatus.textContent = 'Subiendo y procesando ordenanzas...';
-      uploadStatus.style.color = 'var(--primary)';
-      
-      try {
-        const response = await fetch('/api/subida-archivos', {
-          method: 'POST',
-          headers: {
-            'x-requested-with': 'fetch'
-          },
-          body: formData,
-        });
-
-        const rawText = await response.text();
-        let data = null;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          data = { message: rawText };
+      // Handle dropped files
+      dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length) {
+          fileInput.files = files;
+          updateDropZoneText(files);
         }
+      });
 
-        if (!response.ok) {
-          const detail = data?.detail || data?.message || `Error HTTP ${response.status}`;
-          uploadStatus.textContent = `Error: ${detail}`;
-          uploadStatus.style.color = '#f87171';
+      // Handle manual file selection
+      fileInput.addEventListener('change', (e) => {
+        if (fileInput.files.length) {
+          updateDropZoneText(fileInput.files);
+        }
+      });
+
+      function updateDropZoneText(files) {
+        const names = Array.from(files).map(f => f.name);
+        const textSpan = dropZone.querySelector('.drop-zone-text');
+        if (names.length === 1) {
+          textSpan.innerHTML = `Listo para subir: <strong style="color: #60a5fa;">${escapeHtml(names[0])}</strong>`;
+        } else {
+          textSpan.innerHTML = `Listo para subir: <strong style="color: #60a5fa;">${names.length} archivos seleccionados</strong>`;
+        }
+      }
+
+      // Async upload function via Fetch
+      async function uploadSelectedFiles() {
+        const files = fileInput.files;
+        if (!files.length) {
+          uploadStatus.textContent = 'Selecciona o arrastra al menos un archivo.';
+          uploadStatus.style.color = 'var(--warning)';
           return;
         }
 
-        const uploaded = (data.files || []).map(item => item.source_file).filter(Boolean);
-        uploadStatus.textContent = uploaded.length
-          ? `¡Cargado con éxito!: ${uploaded.join(', ')}`
-          : '¡Archivos cargados con éxito!';
-        uploadStatus.style.color = 'var(--success)';
-        
-        // Clear files selection in dropzone
-        fileInput.value = '';
-        const textSpan = dropZone.querySelector('.drop-zone-text');
-        textSpan.innerHTML = 'Arrastra archivos aquí o <span class="browse-link">busca en tu PC</span>';
-        
-        // Refresh document list in library
-        await loadDocuments();
-      } catch (error) {
-        uploadStatus.textContent = `Error de red: ${error.message || error}`;
-        uploadStatus.style.color = '#f87171';
-      } finally {
-        uploadButton.disabled = false;
-      }
-    }
+        const formData = new FormData();
+        for (const file of files) {
+          formData.append('files', file);
+        }
+        formData.append('index_to_meili', 'true');
 
-    uploadButton.addEventListener('click', uploadSelectedFiles);
+        uploadButton.disabled = true;
+        uploadStatus.textContent = 'Subiendo y procesando ordenanzas...';
+        uploadStatus.style.color = 'var(--primary)';
+        
+        try {
+          const response = await fetch('/api/subida-archivos', {
+            method: 'POST',
+            headers: {
+              'x-requested-with': 'fetch'
+            },
+            body: formData,
+          });
+
+          const rawText = await response.text();
+          let data = null;
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            data = { message: rawText };
+          }
+
+          if (!response.ok) {
+            const detail = data?.detail || data?.message || `Error HTTP ${response.status}`;
+            uploadStatus.textContent = `Error: ${detail}`;
+            uploadStatus.style.color = '#f87171';
+            return;
+          }
+
+          const uploaded = (data.files || []).map(item => item.source_file).filter(Boolean);
+          uploadStatus.textContent = uploaded.length
+            ? `¡Cargado con éxito!: ${uploaded.join(', ')}`
+            : '¡Archivos cargados con éxito!';
+          uploadStatus.style.color = 'var(--success)';
+          
+          // Clear files selection in dropzone
+          fileInput.value = '';
+          const textSpan = dropZone.querySelector('.drop-zone-text');
+          textSpan.innerHTML = 'Arrastra archivos aquí o <span class="browse-link">busca en tu PC</span>';
+          
+          // Refresh document list in library
+          await loadDocuments();
+        } catch (error) {
+          uploadStatus.textContent = `Error de red: ${error.message || error}`;
+          uploadStatus.style.color = '#f87171';
+        } finally {
+          uploadButton.disabled = false;
+        }
+      }
+
+      uploadButton.addEventListener('click', uploadSelectedFiles);
+    }
 
 
 
@@ -554,11 +556,11 @@
 
         if (!hits.length) {
           searchResults.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic; color: var(--warning);">Ningún resultado encontrado.</p>';
-          resultBox.textContent = JSON.stringify(data, null, 2);
+          if (resultBox) resultBox.textContent = JSON.stringify(data, null, 2);
           return;
         }
 
-        resultBox.textContent = JSON.stringify(data, null, 2);
+        if (resultBox) resultBox.textContent = JSON.stringify(data, null, 2);
         searchResults.innerHTML = '';
         
         hits.forEach((hit) => {

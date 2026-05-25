@@ -675,7 +675,7 @@ def home(request: Request) -> HTMLResponse:
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-height: 380px;
+      max-height: calc(100vh - 240px);
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -806,7 +806,7 @@ def home(request: Request) -> HTMLResponse:
       flex-direction: column;
       gap: 12px;
       margin-top: 14px;
-      max-height: 400px;
+      max-height: calc(100vh - 340px);
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -1133,32 +1133,6 @@ def home(request: Request) -> HTMLResponse:
     <!-- Left Sidebar: Uploader & Document List -->
     <div class="col col-sidebar">
 
-      <!-- Uploader Card -->
-      <section class="card">
-        <h2 class="card-title">Subir Ordenanzas</h2>
-        <p class="description-text">Sube tus PDFs, DOC o DOCX para convertirlos y agregarlos a la biblioteca.</p>
-        
-        <form id="uploadForm" enctype="multipart/form-data">
-          <div class="drop-zone" id="dropZone">
-            <svg class="drop-zone-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <span class="drop-zone-text">Arrastra archivos aquí o <span class="browse-link">busca en tu PC</span></span>
-            <span class="drop-zone-hint">Formatos soportados: PDF, DOC, DOCX</span>
-            <input type="file" id="files" name="files" multiple style="display: none;">
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button type="button" id="uploadButton" class="btn-primary" style="width: 100%;">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span>Subir y Procesar</span>
-            </button>
-            <p id="uploadStatus" class="description-text" style="font-size: 12px; margin-top: 8px; text-align: center; color: var(--success); margin-bottom: 0;"></p>
-          </div>
-        </form>
-      </section>
 
       <!-- Document list -->
       <section class="card" style="flex: 1;">
@@ -1214,10 +1188,6 @@ def home(request: Request) -> HTMLResponse:
           <p class="description-text" style="text-align: center; font-style: italic;">Escribe algo y presiona Buscar para consultar los índices.</p>
         </div>
 
-        <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid var(--border);">
-          <h3 class="list-title" style="margin-bottom: 8px;">Estado del Pipeline</h3>
-          <pre id="resultBox">Esperando cargas o búsquedas...</pre>
-        </div>
       </section>
     </div>
 
