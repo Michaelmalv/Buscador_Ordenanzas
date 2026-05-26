@@ -3,5 +3,5 @@ uvicorn[standard]==0.34.2
 python-dotenv==1.1.0
 pydantic==2.11.5
 meilisearch==0.36.0
-aspose-words==25.5.0
+pymupdf4llm==0.0.17
 python-multipart==0.0.20
