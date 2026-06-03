@@ -1,51 +1,51 @@
 
-    // Global Error Logger for diagnostics
-    window.onerror = function (message, source, lineno, colno, error) {
-      // 1. Show global overlay error box
-      const errBox = document.createElement('div');
-      errBox.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; padding: 16px; font-family: monospace; font-size: 12px; z-index: 99999; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.5);';
-      errBox.innerHTML = `<strong>Error de JS Global:</strong> ${message}<br>Fichero: ${source}<br>Línea: ${lineno}:${colno}<br><pre style="margin-top: 8px; font-size: 10px; opacity: 0.9;">${error ? error.stack : ''}</pre>`;
-      document.body.appendChild(errBox);
+// Global Error Logger for diagnostics
+window.onerror = function (message, source, lineno, colno, error) {
+  // 1. Show global overlay error box
+  const errBox = document.createElement('div');
+  errBox.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; padding: 16px; font-family: monospace; font-size: 12px; z-index: 99999; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.5);';
+  errBox.innerHTML = `<strong>Error de JS Global:</strong> ${message}<br>Fichero: ${source}<br>Línea: ${lineno}:${colno}<br><pre style="margin-top: 8px; font-size: 10px; opacity: 0.9;">${error ? error.stack : ''}</pre>`;
+  document.body.appendChild(errBox);
 
-      // 2. Also update floating diagnostic box
-      const diagInit = document.getElementById('diagInit');
-      if (diagInit) { diagInit.textContent = 'ERROR GLOBAL'; diagInit.style.color = '#ef4444'; }
-      const diagErr = document.getElementById('diagErrorBox');
-      if (diagErr) {
-        diagErr.style.display = 'block';
-        diagErr.textContent = `${message}\nLínea: ${lineno}:${colno}\nFichero: ${source}`;
-      }
+  // 2. Also update floating diagnostic box
+  const diagInit = document.getElementById('diagInit');
+  if (diagInit) { diagInit.textContent = 'ERROR GLOBAL'; diagInit.style.color = '#ef4444'; }
+  const diagErr = document.getElementById('diagErrorBox');
+  if (diagErr) {
+    diagErr.style.display = 'block';
+    diagErr.textContent = `${message}\nLínea: ${lineno}:${colno}\nFichero: ${source}`;
+  }
 
-      // 3. Post telemetry back to console
-      fetch('/api/log-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: "Global: " + message,
-          source: source,
-          lineno: lineno,
-          colno: colno,
-          stack: error ? error.stack : ''
-        })
-      });
+  // 3. Post telemetry back to console
+  fetch('/api/log-error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: "Global: " + message,
+      source: source,
+      lineno: lineno,
+      colno: colno,
+      stack: error ? error.stack : ''
+    })
+  });
 
-      return false;
-    };
+  return false;
+};
 
-    // Diagnostic tracker: Script is loaded and executing
-    (function() {
-      const s = document.getElementById('diagScript');
-      if (s) { s.textContent = 'SÍ'; s.style.color = '#10b981'; }
-    })();
+// Diagnostic tracker: Script is loaded and executing
+(function () {
+  const s = document.getElementById('diagScript');
+  if (s) { s.textContent = 'SÍ'; s.style.color = '#10b981'; }
+})();
 
-    async function init() {
-      try {
-        const diagDOM = document.getElementById('diagDOM');
-        if (diagDOM) { diagDOM.textContent = 'SÍ'; diagDOM.style.color = '#10b981'; }
-        const diagInit = document.getElementById('diagInit');
-        if (diagInit) { diagInit.textContent = 'EJECUTANDO...'; diagInit.style.color = '#f59e0b'; }
+async function init() {
+  try {
+    const diagDOM = document.getElementById('diagDOM');
+    if (diagDOM) { diagDOM.textContent = 'SÍ'; diagDOM.style.color = '#10b981'; }
+    const diagInit = document.getElementById('diagInit');
+    if (diagInit) { diagInit.textContent = 'EJECUTANDO...'; diagInit.style.color = '#f59e0b'; }
 
-        const searchForm = document.getElementById('searchForm');
+    const searchForm = document.getElementById('searchForm');
     const resultBox = document.getElementById('resultBox');
     const searchResults = document.getElementById('searchResults');
     const docList = document.getElementById('docList');
@@ -127,15 +127,85 @@
         .replaceAll("'", '&#39;');
     }
 
+    const SPANISH_STOP_WORDS = new Set([
+      'de', 'la', 'el', 'en', 'y', 'a', 'los', 'las', 'un', 'una', 
+      'con', 'por', 'para', 'o', 'del', 'al', 'que', 'se', 'su', 'sus',
+      'lo', 'como', 'más', 'pero', 'este', 'esta', 'estos', 'estas'
+    ]);
+
+    function parseSearchQuery(queryStr) {
+      queryStr = queryStr.trim().replace(/\s+/g, ' ').toLowerCase();
+      if (!queryStr) return [];
+
+      // Extract quoted phrases
+      const quotedParts = [];
+      const quoteRegex = /"([^"]+)"/g;
+      let match;
+      while ((match = quoteRegex.exec(queryStr)) !== null) {
+        quotedParts.push(match[1].trim());
+      }
+
+      // Remove quoted parts to find the remaining words
+      let remaining = queryStr;
+      quotedParts.forEach(part => {
+        remaining = remaining.replace(`"${part}"`, ' ');
+      });
+
+      const words = remaining.split(/\s+/).map(w => w.trim()).filter(Boolean);
+
+      const parsed = [];
+      // Add quoted phrases
+      quotedParts.forEach(part => {
+        if (part) {
+          parsed.push({
+            text: part,
+            isPhrase: true
+          });
+        }
+      });
+
+      // Check if there are any non-stopwords
+      const hasNonStopword = words.some(w => !SPANISH_STOP_WORDS.has(w)) || 
+                             quotedParts.some(p => p.split(/\s+/).some(w => !SPANISH_STOP_WORDS.has(w)));
+
+      // Add individual words
+      words.forEach(w => {
+        if (hasNonStopword && SPANISH_STOP_WORDS.has(w)) {
+          return; // Skip stopword if there are significant terms
+        }
+        parsed.push({
+          text: w,
+          isPhrase: false
+        });
+      });
+
+      // If the original query has no quotes and multiple words,
+      // add the entire query as a phrase for highlighting
+      if (quotedParts.length === 0 && words.length > 1) {
+        parsed.push({
+          text: queryStr,
+          isPhrase: true
+        });
+      }
+
+      return parsed;
+    }
+
     // DOM-based Recursive Search Terms Highlighter (Tag Corruption Free!)
     function highlightDOM(element, query) {
       if (!query || !query.trim()) return;
-      const terms = query.trim().split(/\s+/).filter(Boolean);
-      if (!terms.length) return;
+      const parsed = parseSearchQuery(query);
+      if (!parsed.length) return;
+      
+      const terms = parsed.map(t => t.text);
 
       // Sort terms by length in descending order to match longer phrases first
       const sortedTerms = [...terms].sort((a, b) => b.length - a.length);
-      const escapedTerms = sortedTerms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const escapedTerms = sortedTerms.map(term => {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Replace spaces with flexible pattern matching multiple spaces, <br>, or &lt;br&gt;
+        return escaped.replace(/\s+/g, '(?:\\s+|<br\\s*\\/?>|&lt;br\\s*\\/?&gt;)+');
+      });
       const pattern = new RegExp(`(${escapedTerms.join('|')})`, 'gi');
 
       function walk(node) {
@@ -232,7 +302,7 @@
         uploadButton.disabled = true;
         uploadStatus.textContent = 'Subiendo y procesando ordenanzas...';
         uploadStatus.style.color = 'var(--primary)';
-        
+
         try {
           const response = await fetch('/api/subida-archivos', {
             method: 'POST',
@@ -262,12 +332,12 @@
             ? `¡Cargado con éxito!: ${uploaded.join(', ')}`
             : '¡Archivos cargados con éxito!';
           uploadStatus.style.color = 'var(--success)';
-          
+
           // Clear files selection in dropzone
           fileInput.value = '';
           const textSpan = dropZone.querySelector('.drop-zone-text');
           textSpan.innerHTML = 'Arrastra archivos aquí o <span class="browse-link">busca en tu PC</span>';
-          
+
           // Refresh document list in library
           await loadDocuments();
         } catch (error) {
@@ -287,12 +357,12 @@
     async function loadDocuments() {
       const refreshIcon = refreshDocs.querySelector('svg');
       if (refreshIcon) refreshIcon.classList.add('rotate-spinner');
-      
+
       const diagLoadDocs = document.getElementById('diagLoadDocs');
       if (diagLoadDocs) { diagLoadDocs.textContent = 'CARGANDO...'; diagLoadDocs.style.color = '#f59e0b'; }
-      
+
       docList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Actualizando biblioteca...</p>';
-      
+
       try {
         const response = await fetch(`/api/pdfs?t=${Date.now()}`, { cache: 'no-store' });
         const documents = await response.json();
@@ -309,10 +379,10 @@
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'doc-item' + (doc.id === activeDocumentId ? ' active' : '');
-          
+
           const tagClass = doc.converted ? 'ready' : 'pending';
           const tagText = doc.converted ? 'Markdown' : 'Pendiente';
-          
+
           button.innerHTML = `
             <div class="doc-item-title">${escapeHtml(doc.title)}</div>
             <div class="doc-item-meta">
@@ -323,7 +393,7 @@
               <span>${escapeHtml(doc.original_filename || doc.filename)}</span>
             </div>
           `;
-          
+
           button.addEventListener('click', () => loadMarkdown(doc.id));
           docList.appendChild(button);
         });
@@ -342,26 +412,26 @@
       downloadOriginalPDF.disabled = false;
       viewerLoading.style.display = 'inline-block';
       markdownViewer.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Descargando contenido del documento...</p>';
-      
+
       try {
         const response = await fetch(`/api/documentos/${encodeURIComponent(documentId)}/markdown?t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) {
           markdownViewer.innerHTML = '<p class="description-text" style="text-align: center; color: var(--warning);">No se pudo cargar el documento.</p>';
           return;
         }
-        
+
         const data = await response.json();
         fullMarkdownContent = data.markdown;
-        
+
         // Update viewer headers
         const matchedDoc = Array.from(docList.querySelectorAll('.doc-item')).find(item => item.innerHTML.includes(documentId));
         const cleanTitle = (matchedDoc && matchedDoc.querySelector('.doc-item-title')) ? matchedDoc.querySelector('.doc-item-title').textContent : (documentId.split('_', 1)[1] || documentId);
         viewerTitle.textContent = cleanTitle;
         viewerMetaText.textContent = `Archivo: ${documentId}.md`;
-        
+
         tabFragment.disabled = !fragmentHint;
         tabPDF.disabled = false;
-        
+
         if (fragmentHint) {
           activeFragment = fragmentHint;
           setViewMode('fragment');
@@ -381,14 +451,14 @@
           : 1;
 
         await loadFragments(documentId, targetPage);
-        
+
         // Refresh library highlight state
         docList.querySelectorAll('.doc-item').forEach(item => {
           item.classList.remove('active');
         });
         const activeDocBtn = Array.from(docList.querySelectorAll('.doc-item')).find(btn => btn.innerHTML.includes(documentId));
         if (activeDocBtn) activeDocBtn.classList.add('active');
-        
+
       } catch (error) {
         markdownViewer.innerHTML = '<p class="description-text" style="text-align: center; color: var(--warning);">Ocurrió un error al cargar el Markdown.</p>';
       } finally {
@@ -403,7 +473,7 @@
         tabComplete.classList.add('active');
         tabFragment.classList.remove('active');
         tabPDF.classList.remove('active');
-        
+
         if (window.marked) {
           markdownViewer.innerHTML = marked.parse(fullMarkdownContent || '*Vacío*');
         } else {
@@ -413,13 +483,13 @@
         tabFragment.classList.add('active');
         tabComplete.classList.remove('active');
         tabPDF.classList.remove('active');
-        
+
         const content = activeFragment.content_markdown || activeFragment.content_text || '';
-        
+
         let headerHtml = `<div style="background: rgba(139, 92, 246, 0.05); border: 1px dashed rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px;">
           <span style="font-weight: 700; color: #a78bfa;">Fragmento ${escapeHtml(activeFragment.chunk_number || '?')}</span> · Sección: <strong style="color: #fff;">${escapeHtml(activeFragment.section || 'General')}</strong>
         </div>`;
-        
+
         if (window.marked) {
           markdownViewer.innerHTML = headerHtml + marked.parse(content);
         } else {
@@ -429,13 +499,13 @@
         tabPDF.classList.add('active');
         tabComplete.classList.remove('active');
         tabFragment.classList.remove('active');
-        
+
         let pdfUrl = `/api/documentos/${encodeURIComponent(activeDocumentId)}/pdf?t=${Date.now()}`;
         if (activeSearchQuery && activeSearchQuery.trim()) {
           // Strict Adobe PDF open parameters require the word to be enclosed in double quotes: #search="word"
           pdfUrl += `#search=%22${encodeURIComponent(activeSearchQuery.trim())}%22`;
         }
-        
+
         markdownViewer.innerHTML = `
           <div style="display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 520px;">
             <embed src="${pdfUrl}" type="application/pdf" style="width: 100%; height: 500px; border: none; border-radius: 12px; background: white;"></embed>
@@ -445,7 +515,7 @@
           </div>
         `;
       }
-      
+
       // Perform DOM highlighting
       if (mode !== 'pdf') {
         highlightDOM(markdownViewer, activeSearchQuery);
@@ -460,7 +530,7 @@
     async function loadFragments(documentId, page = 1) {
       currentFragmentPage = page;
       fragmentList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Descargando fragmentos...</p>';
-      
+
       const params = new URLSearchParams({
         page: String(page),
         page_size: String(currentFragmentPageSize),
@@ -496,10 +566,10 @@
           button.type = 'button';
           const isSelected = activeFragment && activeFragment.id === fragment.id;
           button.className = 'fragment-item' + (isSelected ? ' active' : '');
-          
+
           const cleanPreview = (fragment.content_text || '').slice(0, 140).trim();
           const dots = (fragment.content_text || '').length > 140 ? '...' : '';
-          
+
           button.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
               <span class="fragment-item-title">Fragmento ${escapeHtml(fragment.chunk_number)}</span>
@@ -508,7 +578,7 @@
             <div class="fragment-meta-info" style="font-weight: 500; color: #fff;">${escapeHtml(fragment.section)}</div>
             <div class="fragment-meta-info" style="color: var(--text-muted); font-size: 11px;">${escapeHtml(cleanPreview)}${dots}</div>
           `;
-          
+
           button.addEventListener('click', () => {
             activeFragment = fragment;
             tabFragment.disabled = false;
@@ -538,7 +608,7 @@
       }
 
       searchResults.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;"><span class="loading-pulse" style="margin-right: 6px; vertical-align: middle;"></span> Consultando Meilisearch...</p>';
-      
+
       try {
         const response = await fetch('/api/buscar', {
           method: 'POST',
@@ -548,7 +618,7 @@
         const data = await response.json();
         const hits = data.results?.hits || [];
         activeSearchQuery = query;
-        
+
         // Re-highlight active document viewer if active
         if (activeDocumentId) {
           setViewMode(viewMode);
@@ -562,13 +632,13 @@
 
         if (resultBox) resultBox.textContent = JSON.stringify(data, null, 2);
         searchResults.innerHTML = '';
-        
+
         hits.forEach((hit) => {
           const item = document.createElement('div');
           item.className = 'result-item';
-          
+
           const titleText = hit.title || hit.document_id || 'Documento';
-          
+
           item.innerHTML = `
             <div class="result-item-header">
               <h4>${escapeHtml(titleText)}</h4>
@@ -583,7 +653,7 @@
               Ver fragmento exacto
             </button>
           `;
-          
+
           // Apply DOM highlighting inside the snippet preview text block
           const snippetTextDiv = item.querySelector('.result-text');
           highlightDOM(snippetTextDiv, query);
@@ -657,50 +727,49 @@
     });
 
     refreshDocs.addEventListener('click', loadDocuments);
-    
-        // Initial triggers
-        checkMeilisearchStatus();
-        setInterval(checkMeilisearchStatus, 15000); // Check status every 15s
-        await loadDocuments();
 
-        // 4. Diagnostic: init completed successfully
-        if (diagInit) { diagInit.textContent = 'SÍ'; diagInit.style.color = '#10b981'; }
-      } catch (err) {
-        console.error("DOM Ready JS Error:", err);
-        
-        // Update floating diagnostic panel on error
-        const diagInitErr = document.getElementById('diagInit');
-        if (diagInitErr) { diagInitErr.textContent = 'ERROR'; diagInitErr.style.color = '#ef4444'; }
-        const diagErr = document.getElementById('diagErrorBox');
-        if (diagErr) {
-          diagErr.style.display = 'block';
-          diagErr.textContent = `${err.message}\n${err.stack || ''}`;
-        }
-        
-        // Remote error logger for handled exceptions
-        fetch('/api/log-error', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: "Handled: " + err.message,
-            source: "main.py",
-            lineno: 0,
-            colno: 0,
-            stack: err.stack || ''
-          })
-        });
+    // Initial triggers
+    checkMeilisearchStatus();
+    setInterval(checkMeilisearchStatus, 15000); // Check status every 15s
+    await loadDocuments();
 
-        const docList = document.getElementById('docList');
-        if (docList) {
-          docList.innerHTML = `<div style="padding: 12px; color: #f87171; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 12px; font-size: 12px; font-family: var(--font-mono); text-align: left;"><strong>Error de JS:</strong> ${err.message}<br><pre style="white-space: pre-wrap; font-size: 10px; margin-top: 8px; color: #fca5a5;">${err.stack}</pre></div>`;
-        }
-        const meiliStatusText = document.getElementById('meiliStatusText');
-        if (meiliStatusText) meiliStatusText.textContent = "Error de JS";
-        const meiliStatus = document.getElementById('meiliStatus');
-        if (meiliStatus) meiliStatus.className = "status-badge offline";
-      }
+    // 4. Diagnostic: init completed successfully
+    if (diagInit) { diagInit.textContent = 'SÍ'; diagInit.style.color = '#10b981'; }
+  } catch (err) {
+    console.error("DOM Ready JS Error:", err);
+
+    // Update floating diagnostic panel on error
+    const diagInitErr = document.getElementById('diagInit');
+    if (diagInitErr) { diagInitErr.textContent = 'ERROR'; diagInitErr.style.color = '#ef4444'; }
+    const diagErr = document.getElementById('diagErrorBox');
+    if (diagErr) {
+      diagErr.style.display = 'block';
+      diagErr.textContent = `${err.message}\n${err.stack || ''}`;
     }
 
-    // Start the application immediately since the script is at the bottom of the body
-    init();
-  
+    // Remote error logger for handled exceptions
+    fetch('/api/log-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: "Handled: " + err.message,
+        source: "main.py",
+        lineno: 0,
+        colno: 0,
+        stack: err.stack || ''
+      })
+    });
+
+    const docList = document.getElementById('docList');
+    if (docList) {
+      docList.innerHTML = `<div style="padding: 12px; color: #f87171; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 12px; font-size: 12px; font-family: var(--font-mono); text-align: left;"><strong>Error de JS:</strong> ${err.message}<br><pre style="white-space: pre-wrap; font-size: 10px; margin-top: 8px; color: #fca5a5;">${err.stack}</pre></div>`;
+    }
+    const meiliStatusText = document.getElementById('meiliStatusText');
+    if (meiliStatusText) meiliStatusText.textContent = "Error de JS";
+    const meiliStatus = document.getElementById('meiliStatus');
+    if (meiliStatus) meiliStatus.className = "status-badge offline";
+  }
+}
+
+// Start the application immediately since the script is at the bottom of the body
+init();

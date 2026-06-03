@@ -4,6 +4,8 @@ from typing import Any
 
 def markdown_to_plain_text(markdown: str) -> str:
     text = markdown
+    # Replace HTML line breaks (literal or escaped) with space to improve phrase matching
+    text = re.sub(r'<br\s*/?>|&lt;br\s*/?&gt;', ' ', text, flags=re.IGNORECASE)
     text = re.sub(r'```.*?```', ' ', text, flags=re.DOTALL)
     text = re.sub(r'`([^`]*)`', r'\1', text)
     text = re.sub(r'!\[.*?\]\(.*?\)', ' ', text)

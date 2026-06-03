@@ -138,22 +138,95 @@ def read_markdown_document(document_id: str) -> str:
     return markdown_path.read_text(encoding='utf-8')
 
 
-def score_fragment(fragment: dict, fragment_query: str | None = None) -> int:
-  normalized_query = fragment_query.strip().lower() if fragment_query else ''
-  if not normalized_query:
-    return 0
+SPANISH_STOP_WORDS = {
+    'de', 'la', 'el', 'en', 'y', 'a', 'los', 'las', 'un', 'una', 
+    'con', 'por', 'para', 'o', 'del', 'al', 'que', 'se', 'su', 'sus',
+    'lo', 'como', 'más', 'pero', 'este', 'esta', 'estos', 'estas'
+}
 
-  haystack = f"{fragment['section']} {fragment['content_text']}".lower()
-  score = 0
-  for term in normalized_query.split():
-    score += haystack.count(term)
-  return score
+
+def parse_search_query(query_str: str) -> list[dict]:
+    import re
+    query_str = re.sub(r'\s+', ' ', query_str.strip().lower())
+    if not query_str:
+        return []
+
+    # Find quoted phrases
+    quoted_parts = re.findall(r'"([^"]+)"', query_str)
+
+    # Remove quoted parts to find the rest
+    remaining = query_str
+    for part in quoted_parts:
+        remaining = remaining.replace(f'"{part}"', ' ')
+
+    words = [w.strip() for w in remaining.split() if w.strip()]
+
+    parsed = []
+    # Add quoted phrases (required)
+    for part in quoted_parts:
+        if part.strip():
+            parsed.append({
+                'text': part.strip(),
+                'is_phrase': True,
+                'required': True,
+                'weight': 1000
+            })
+
+    # Check if there are any non-stopwords
+    has_non_stopword = any(
+        (w not in SPANISH_STOP_WORDS) for w in (words + quoted_parts)
+    )
+
+    # Add individual words (required)
+    for w in words:
+        if has_non_stopword and w in SPANISH_STOP_WORDS:
+            continue
+        parsed.append({
+            'text': w,
+            'is_phrase': False,
+            'required': True,
+            'weight': 10
+        })
+
+    # If the original query has no quotes and has multiple words,
+    # add the entire query as a boost phrase (optional/not required)
+    if not quoted_parts and len(words) > 1:
+        parsed.append({
+            'text': query_str,
+            'is_phrase': True,
+            'required': False,
+            'weight': 1000
+        })
+
+    return parsed
+
+
+def score_fragment_parsed(haystack: str, parsed_query: list[dict]) -> int:
+    if not parsed_query:
+        return 0
+    score = 0
+    for term in parsed_query:
+        count = haystack.count(term['text'])
+        score += count * term['weight']
+    return score
+
+
+def score_fragment(fragment: dict, fragment_query: str | None = None) -> int:
+    normalized_query = fragment_query.strip().lower() if fragment_query else ''
+    if not normalized_query:
+        return 0
+
+    haystack = f"{fragment['section']} {fragment['content_text']}".lower()
+    parsed_query = parse_search_query(normalized_query)
+    return score_fragment_parsed(haystack, parsed_query)
 
 
 def build_fragments(document_id: str, fragment_query: str | None = None) -> list[dict]:
     markdown = read_markdown_document(document_id)
     fragments: list[dict] = []
     normalized_query = fragment_query.strip().lower() if fragment_query else ''
+    
+    parsed_query = parse_search_query(normalized_query) if normalized_query else []
 
     for index, chunk in enumerate(split_markdown_by_headers(markdown), start=1):
         content_markdown = chunk['content_markdown'].strip()
@@ -161,12 +234,17 @@ def build_fragments(document_id: str, fragment_query: str | None = None) -> list
             continue
 
         content_text = markdown_to_plain_text(content_markdown)
-        
-        # Ensure all search terms are present anywhere in the section or text for local filtering
-        if normalized_query:
-            terms = normalized_query.split()
-            haystack = f"{chunk['section']} {content_text}".lower()
-            if not all(term in haystack for term in terms):
+        haystack = f"{chunk['section']} {content_text}".lower()
+
+        # Local filtering: Check if all REQUIRED terms are present
+        if parsed_query:
+            matched_all = True
+            for term in parsed_query:
+                if term['required']:
+                    if term['text'] not in haystack:
+                        matched_all = False
+                        break
+            if not matched_all:
                 continue
 
         fragments.append(
@@ -178,13 +256,7 @@ def build_fragments(document_id: str, fragment_query: str | None = None) -> list
                 'content_markdown': content_markdown,
                 'content_text': content_text,
                 'char_count': len(content_markdown),
-                'score': score_fragment(
-                    {
-                        'section': chunk['section'],
-                        'content_text': content_text,
-                    },
-                    normalized_query,
-                ),
+                'score': score_fragment_parsed(haystack, parsed_query),
             }
         )
 
