@@ -42,4 +42,62 @@ def split_markdown_by_headers(markdown: str) -> list[dict[str, Any]]:
             'content_markdown': '\n'.join(current_lines).strip(),
         })
 
-    return chunks
+    # Sub-split chunks that are too large (e.g., > 2000 characters)
+    MAX_CHUNK_SIZE = 2000
+    final_chunks = []
+    
+    for chunk in chunks:
+        content = chunk['content_markdown']
+        if len(content) <= MAX_CHUNK_SIZE:
+            final_chunks.append(chunk)
+            continue
+            
+        # Sub-split content by paragraphs (double newlines) to preserve semantic units
+        paragraphs = content.split('\n\n')
+        current_sub_lines = []
+        current_sub_len = 0
+        part_idx = 1
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            # If a single paragraph is exceptionally large, split it by lines instead
+            if len(para) > MAX_CHUNK_SIZE:
+                lines_in_para = para.split('\n')
+                for line in lines_in_para:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if current_sub_len + len(line) > MAX_CHUNK_SIZE and current_sub_lines:
+                        final_chunks.append({
+                            'section': f"{chunk['section']} (Parte {part_idx})",
+                            'content_markdown': '\n'.join(current_sub_lines),
+                        })
+                        current_sub_lines = []
+                        current_sub_len = 0
+                        part_idx += 1
+                    current_sub_lines.append(line)
+                    current_sub_len += len(line) + 1
+                continue
+            
+            if current_sub_len + len(para) > MAX_CHUNK_SIZE and current_sub_lines:
+                final_chunks.append({
+                    'section': f"{chunk['section']} (Parte {part_idx})",
+                    'content_markdown': '\n\n'.join(current_sub_lines),
+                })
+                current_sub_lines = []
+                current_sub_len = 0
+                part_idx += 1
+            
+            current_sub_lines.append(para)
+            current_sub_len += len(para) + 2
+            
+        if current_sub_lines:
+            final_chunks.append({
+                'section': f"{chunk['section']} (Parte {part_idx})" if part_idx > 1 else chunk['section'],
+                'content_markdown': '\n\n'.join(current_sub_lines),
+            })
+            
+    return final_chunks
