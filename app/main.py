@@ -464,8 +464,14 @@ def warm_cache():
 
 @app.on_event("startup")
 def startup_event():
-    threading.Thread(target=warm_cache, daemon=True).start()
-    threading.Thread(target=check_meili_loop, daemon=True).start()
+    import os
+    is_vercel = os.environ.get("VERCEL") == "1" or "VERCEL_ENV" in os.environ
+    if is_vercel:
+        print("[*] Ejecutándose en Vercel (modo serverless). Omitiendo precalentamiento para evitar timeout de cold-start.")
+        threading.Thread(target=check_meili_loop, daemon=True).start()
+    else:
+        threading.Thread(target=warm_cache, daemon=True).start()
+        threading.Thread(target=check_meili_loop, daemon=True).start()
 
 
 @app.get('/health')
