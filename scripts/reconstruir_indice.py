@@ -34,8 +34,10 @@ def process_markdown_file(args):
         clean_chunks = [] # without markdown content, for global search index
         
         for index, chunk in enumerate(chunks, start=1):
-            content_markdown = chunk['section'] + "\n\n" + chunk['content_markdown'].strip()
-            if not content_markdown.strip():
+            # Do NOT prepend the section header to the content. It is already stored in the 'section' field.
+            # This ensures card previews display the actual matching paragraph.
+            content_markdown = chunk['content_markdown'].strip()
+            if not content_markdown:
                 continue
                 
             chunk_id = f"{document_id}-fragment-{index}"
