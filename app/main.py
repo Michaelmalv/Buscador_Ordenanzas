@@ -1499,16 +1499,6 @@ def home(request: Request) -> HTMLResponse:
           <span id="badgeCon" class="menu-badge">0</span>
         </button>
       </div>
-
-      <div class="menu-section" style="margin-top: auto;">
-        <span class="menu-section-title">ADMINISTRACIÓN</span>
-        <button id="menuBtnUpload" class="menu-item">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          <span>Subir Archivos</span>
-        </button>
-      </div>
     </aside>
 
     <!-- Main Body Content Grid -->
@@ -1591,35 +1581,6 @@ def home(request: Request) -> HTMLResponse:
           <div class="scroll-list" id="docList">
             <p class="description-text" style="text-align: center; font-style: italic;">Cargando categoría...</p>
           </div>
-        </div>
-
-        <!-- C. VIEW 3: Upload Panel (Hidden by default) -->
-        <div id="uploadPanel" style="display: none; flex-direction: column; height: 100%;">
-          <div class="panel-header">
-            <h2>Subir Archivos</h2>
-            <p>Cargar nuevas ordenanzas o resoluciones en formato PDF.</p>
-          </div>
-          
-          <section class="card">
-            <span class="pill-badge">Administración</span>
-            <h3 class="card-title">Cargar Documentos</h3>
-            <p class="description-text">Sube archivos PDF en lote para procesarlos automáticamente e indexarlos.</p>
-            
-            <form id="uploadForm" action="/subida-archivos" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 12px;">
-              <div class="drop-zone" id="dropZone">
-                <span class="drop-zone-text">Arrastra archivos aquí o <span class="browse-link">busca en tu PC</span></span>
-                <input type="file" name="files" id="files" multiple accept=".pdf" style="display: none;">
-              </div>
-              
-              <button type="submit" id="uploadButton" class="btn-primary" style="width: 100%;">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span>Subir y Procesar</span>
-              </button>
-            </form>
-            <div id="uploadStatus" class="description-text" style="margin-top: 10px; font-weight: 500; font-size: 12px; text-align: center;"></div>
-          </section>
         </div>
 
       </div>

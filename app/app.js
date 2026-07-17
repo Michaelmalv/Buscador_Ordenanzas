@@ -94,14 +94,12 @@ async function init() {
     const menuBtnOrd = document.getElementById('menuBtnOrd');
     const menuBtnAlc = document.getElementById('menuBtnAlc');
     const menuBtnCon = document.getElementById('menuBtnCon');
-    const menuBtnUpload = document.getElementById('menuBtnUpload');
     const badgeOrd = document.getElementById('badgeOrd');
     const badgeAlc = document.getElementById('badgeAlc');
     const badgeCon = document.getElementById('badgeCon');
 
     const searchPanel = document.getElementById('searchPanel');
     const categoryPanel = document.getElementById('categoryPanel');
-    const uploadPanel = document.getElementById('uploadPanel');
     const categoryTitle = document.getElementById('categoryTitle');
     const categorySearchInput = document.getElementById('categorySearchInput');
 
@@ -121,20 +119,16 @@ async function init() {
     function switchActivePanel(panelName) {
       activeCategory = panelName;
       
-      [menuBtnSearch, menuBtnOrd, menuBtnAlc, menuBtnCon, menuBtnUpload].forEach(btn => {
+      [menuBtnSearch, menuBtnOrd, menuBtnAlc, menuBtnCon].forEach(btn => {
         if (btn) btn.classList.remove('active');
       });
       
       if (searchPanel) searchPanel.style.display = 'none';
       if (categoryPanel) categoryPanel.style.display = 'none';
-      if (uploadPanel) uploadPanel.style.display = 'none';
       
       if (panelName === 'Buscar') {
         if (menuBtnSearch) menuBtnSearch.classList.add('active');
         if (searchPanel) searchPanel.style.display = 'flex';
-      } else if (panelName === 'Subir') {
-        if (menuBtnUpload) menuBtnUpload.classList.add('active');
-        if (uploadPanel) uploadPanel.style.display = 'flex';
       } else {
         if (panelName === 'Ordenanzas' && menuBtnOrd) menuBtnOrd.classList.add('active');
         if (panelName === 'Resoluciones de Alcaldía' && menuBtnAlc) menuBtnAlc.classList.add('active');
@@ -195,7 +189,6 @@ async function init() {
     if (menuBtnOrd) menuBtnOrd.addEventListener('click', () => switchActivePanel('Ordenanzas'));
     if (menuBtnAlc) menuBtnAlc.addEventListener('click', () => switchActivePanel('Resoluciones de Alcaldía'));
     if (menuBtnCon) menuBtnCon.addEventListener('click', () => switchActivePanel('Resoluciones de Concejo'));
-    if (menuBtnUpload) menuBtnUpload.addEventListener('click', () => switchActivePanel('Subir'));
     
     if (categorySearchInput) {
       categorySearchInput.addEventListener('input', renderCategoryDocuments);
