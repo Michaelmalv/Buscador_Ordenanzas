@@ -871,11 +871,11 @@ def home(request: Request) -> HTMLResponse:
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 20px;
+      padding: 16px;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.02);
       display: flex;
       flex-direction: column;
-      margin: 16px 24px 0 24px;
+      margin: 10px 20px 0 20px;
     }
 
     .card:last-child {
@@ -991,9 +991,17 @@ def home(request: Request) -> HTMLResponse:
     /* Chips */
     .chips-container {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      white-space: nowrap;
       gap: 8px;
       margin-top: 10px;
+      padding-bottom: 4px;
+      scrollbar-width: none; /* Firefox */
+    }
+
+    .chips-container::-webkit-scrollbar {
+      display: none; /* Safari and Chrome */
     }
 
     .chip {
@@ -1542,10 +1550,6 @@ def home(request: Request) -> HTMLResponse:
           </div>
           
           <section class="card">
-            <span class="pill-badge">Búsqueda Semántica</span>
-            <h3 class="card-title">Consultar</h3>
-            <p class="description-text" style="margin-bottom: 12px;">Busca de forma instantánea en todas las ordenanzas de la biblioteca.</p>
-            
             <!-- Opciones de búsqueda -->
             <div class="search-options" style="display: flex; gap: 20px; margin-bottom: 16px; margin-top: 4px;">
               <label class="radio-label" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text);">
