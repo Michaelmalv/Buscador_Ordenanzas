@@ -89,6 +89,25 @@ async function init() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('files');
 
+    // Sidebar menu navigation selectors
+    const menuBtnSearch = document.getElementById('menuBtnSearch');
+    const menuBtnOrd = document.getElementById('menuBtnOrd');
+    const menuBtnAlc = document.getElementById('menuBtnAlc');
+    const menuBtnCon = document.getElementById('menuBtnCon');
+    const menuBtnUpload = document.getElementById('menuBtnUpload');
+    const badgeOrd = document.getElementById('badgeOrd');
+    const badgeAlc = document.getElementById('badgeAlc');
+    const badgeCon = document.getElementById('badgeCon');
+
+    const searchPanel = document.getElementById('searchPanel');
+    const categoryPanel = document.getElementById('categoryPanel');
+    const uploadPanel = document.getElementById('uploadPanel');
+    const categoryTitle = document.getElementById('categoryTitle');
+    const categorySearchInput = document.getElementById('categorySearchInput');
+
+    let allLoadedDocuments = [];
+    let activeCategory = 'Buscar'; // 'Buscar', 'Ordenanzas', 'Resoluciones de Alcaldía', 'Resoluciones de Concejo', 'Subir'
+
     let activeDocumentId = null;
     let activeFragment = null;
     let fullMarkdownContent = '';
@@ -98,6 +117,89 @@ async function init() {
     let currentFragmentTotalPages = 1;
     let currentFragmentQuery = '';
     let viewMode = 'complete'; // 'complete' or 'fragment'
+
+    function switchActivePanel(panelName) {
+      activeCategory = panelName;
+      
+      [menuBtnSearch, menuBtnOrd, menuBtnAlc, menuBtnCon, menuBtnUpload].forEach(btn => {
+        if (btn) btn.classList.remove('active');
+      });
+      
+      if (searchPanel) searchPanel.style.display = 'none';
+      if (categoryPanel) categoryPanel.style.display = 'none';
+      if (uploadPanel) uploadPanel.style.display = 'none';
+      
+      if (panelName === 'Buscar') {
+        if (menuBtnSearch) menuBtnSearch.classList.add('active');
+        if (searchPanel) searchPanel.style.display = 'flex';
+      } else if (panelName === 'Subir') {
+        if (menuBtnUpload) menuBtnUpload.classList.add('active');
+        if (uploadPanel) uploadPanel.style.display = 'flex';
+      } else {
+        if (panelName === 'Ordenanzas' && menuBtnOrd) menuBtnOrd.classList.add('active');
+        if (panelName === 'Resoluciones de Alcaldía' && menuBtnAlc) menuBtnAlc.classList.add('active');
+        if (panelName === 'Resoluciones de Concejo' && menuBtnCon) menuBtnCon.classList.add('active');
+        
+        if (categoryTitle) categoryTitle.textContent = panelName;
+        if (categoryPanel) categoryPanel.style.display = 'flex';
+        
+        // Reset category search input when changing categories
+        if (categorySearchInput) categorySearchInput.value = '';
+        renderCategoryDocuments();
+      }
+    }
+
+    function renderCategoryDocuments() {
+      if (!docList) return;
+      docList.innerHTML = '';
+      
+      const filterText = categorySearchInput ? categorySearchInput.value.toLowerCase().trim() : '';
+      const filteredDocs = allLoadedDocuments.filter(doc => {
+        const matchesCat = doc.category === activeCategory;
+        if (!matchesCat) return false;
+        if (!filterText) return true;
+        return (doc.title || '').toLowerCase().includes(filterText) ||
+               (doc.original_filename || doc.filename || '').toLowerCase().includes(filterText);
+      });
+      
+      if (filteredDocs.length === 0) {
+        docList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic; margin-top: 20px;">No se encontraron documentos.</p>';
+        return;
+      }
+      
+      filteredDocs.forEach(doc => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'doc-item' + (doc.id === activeDocumentId ? ' active' : '');
+        
+        const tagClass = doc.converted ? 'ready' : 'pending';
+        const tagText = doc.converted ? 'Markdown' : 'Pendiente';
+        
+        button.innerHTML = `
+          <div class="doc-item-title">${escapeHtml(doc.title)}</div>
+          <div class="doc-item-meta">
+            <span class="indicator-tag ${tagClass}">
+              <span class="dot-pulse"></span>
+              <span>${tagText}</span>
+            </span>
+            <span>${escapeHtml(doc.original_filename || doc.filename)}</span>
+          </div>
+        `;
+        
+        button.addEventListener('click', () => loadMarkdown(doc.id));
+        docList.appendChild(button);
+      });
+    }
+
+    if (menuBtnSearch) menuBtnSearch.addEventListener('click', () => switchActivePanel('Buscar'));
+    if (menuBtnOrd) menuBtnOrd.addEventListener('click', () => switchActivePanel('Ordenanzas'));
+    if (menuBtnAlc) menuBtnAlc.addEventListener('click', () => switchActivePanel('Resoluciones de Alcaldía'));
+    if (menuBtnCon) menuBtnCon.addEventListener('click', () => switchActivePanel('Resoluciones de Concejo'));
+    if (menuBtnUpload) menuBtnUpload.addEventListener('click', () => switchActivePanel('Subir'));
+    
+    if (categorySearchInput) {
+      categorySearchInput.addEventListener('input', renderCategoryDocuments);
+    }
 
     // Configure Marked.js Options
     if (window.marked) {
@@ -366,51 +468,37 @@ async function init() {
 
     // Library rendering
     async function loadDocuments() {
-      const refreshIcon = refreshDocs.querySelector('svg');
+      const refreshIcon = refreshDocs ? refreshDocs.querySelector('svg') : null;
       if (refreshIcon) refreshIcon.classList.add('rotate-spinner');
 
       const diagLoadDocs = document.getElementById('diagLoadDocs');
       if (diagLoadDocs) { diagLoadDocs.textContent = 'CARGANDO...'; diagLoadDocs.style.color = '#f59e0b'; }
 
-      docList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Actualizando biblioteca...</p>';
+      if (docList) {
+        docList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Actualizando biblioteca...</p>';
+      }
 
       try {
         const response = await fetch(`/api/pdfs?t=${Date.now()}`, { cache: 'no-store' });
         const documents = await response.json();
+        allLoadedDocuments = documents;
 
         if (diagLoadDocs) { diagLoadDocs.textContent = 'SÍ'; diagLoadDocs.style.color = '#10b981'; }
 
-        if (!documents.length) {
-          docList.innerHTML = '<p class="description-text" style="text-align: center; font-style: italic;">Todavía no hay PDFs subidos.</p>';
-          return;
+        // Update category counts in sidebar
+        if (badgeOrd) badgeOrd.textContent = allLoadedDocuments.filter(d => d.category === 'Ordenanzas').length;
+        if (badgeAlc) badgeAlc.textContent = allLoadedDocuments.filter(d => d.category === 'Resoluciones de Alcaldía').length;
+        if (badgeCon) badgeCon.textContent = allLoadedDocuments.filter(d => d.category === 'Resoluciones de Concejo').length;
+
+        // Render current view
+        if (activeCategory !== 'Buscar' && activeCategory !== 'Subir') {
+          renderCategoryDocuments();
         }
-
-        docList.innerHTML = '';
-        documents.forEach((doc) => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'doc-item' + (doc.id === activeDocumentId ? ' active' : '');
-
-          const tagClass = doc.converted ? 'ready' : 'pending';
-          const tagText = doc.converted ? 'Markdown' : 'Pendiente';
-
-          button.innerHTML = `
-            <div class="doc-item-title">${escapeHtml(doc.title)}</div>
-            <div class="doc-item-meta">
-              <span class="indicator-tag ${tagClass}">
-                <span class="dot-pulse"></span>
-                <span>${tagText}</span>
-              </span>
-              <span>${escapeHtml(doc.original_filename || doc.filename)}</span>
-            </div>
-          `;
-
-          button.addEventListener('click', () => loadMarkdown(doc.id));
-          docList.appendChild(button);
-        });
       } catch (error) {
         if (diagLoadDocs) { diagLoadDocs.textContent = 'ERROR: ' + error.message; diagLoadDocs.style.color = '#ef4444'; }
-        docList.innerHTML = '<p class="description-text" style="text-align: center; color: var(--warning);">Error al cargar biblioteca.</p>';
+        if (docList) {
+          docList.innerHTML = '<p class="description-text" style="text-align: center; color: var(--warning);">Error al cargar biblioteca.</p>';
+        }
       } finally {
         if (refreshIcon) refreshIcon.classList.remove('rotate-spinner');
       }
@@ -437,9 +525,9 @@ async function init() {
         const data = await response.json();
         fullMarkdownContent = data.markdown;
 
-        // Update viewer headers
-        const matchedDoc = Array.from(docList.querySelectorAll('.doc-item')).find(item => item.innerHTML.includes(documentId));
-        const cleanTitle = (matchedDoc && matchedDoc.querySelector('.doc-item-title')) ? matchedDoc.querySelector('.doc-item-title').textContent : (documentId.split('_', 1)[1] || documentId);
+        // Update viewer headers from allLoadedDocuments array
+        const docMeta = allLoadedDocuments.find(d => d.id === documentId);
+        const cleanTitle = docMeta ? docMeta.title : (documentId.split('_', 1)[1] || documentId);
         viewerTitle.textContent = cleanTitle;
         viewerMetaText.textContent = `Archivo: ${documentId}.md`;
 
@@ -466,12 +554,14 @@ async function init() {
 
         await loadFragments(documentId, targetPage);
 
-        // Refresh library highlight state
-        docList.querySelectorAll('.doc-item').forEach(item => {
-          item.classList.remove('active');
-        });
-        const activeDocBtn = Array.from(docList.querySelectorAll('.doc-item')).find(btn => btn.innerHTML.includes(documentId));
-        if (activeDocBtn) activeDocBtn.classList.add('active');
+        // Refresh library highlight state safely
+        if (docList) {
+          docList.querySelectorAll('.doc-item').forEach(item => {
+            item.classList.remove('active');
+          });
+          const activeDocBtn = Array.from(docList.querySelectorAll('.doc-item')).find(btn => btn.innerHTML.includes(documentId));
+          if (activeDocBtn) activeDocBtn.classList.add('active');
+        }
 
       } catch (error) {
         markdownViewer.innerHTML = '<p class="description-text" style="text-align: center; color: var(--warning);">Ocurrió un error al cargar el Markdown.</p>';
