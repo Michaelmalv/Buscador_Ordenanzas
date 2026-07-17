@@ -128,7 +128,18 @@ def get_document_category(doc_id: str) -> str:
         return "Resoluciones de Alcaldía"
 
 
+_DOCUMENTS_CACHE = None
+_DOCUMENTS_CACHE_TIME = 0.0
+_S3_KEY_CACHE = {}
+
 def list_uploaded_documents() -> list[dict]:
+    global _DOCUMENTS_CACHE, _DOCUMENTS_CACHE_TIME
+    import time
+    
+    # Cache document list for 10 minutes to avoid slow pagination queries from R2/S3
+    if _DOCUMENTS_CACHE is not None and (time.time() - _DOCUMENTS_CACHE_TIME) < 600:
+        return _DOCUMENTS_CACHE
+
     s3_client = get_s3_client()
     documents: list[dict] = []
     if s3_client:
@@ -158,6 +169,9 @@ def list_uploaded_documents() -> list[dict]:
                         if not filename:
                             continue
                             
+                        # Cache the exact key path for fast URL presigner lookup
+                        _S3_KEY_CACHE[stem] = key
+
                         parts = filename.split('_', 1)
                         if len(parts) > 1 and len(parts[0]) == 32 and all(c in '0123456789abcdefABCDEF' for c in parts[0]):
                             original_filename = parts[1]
@@ -174,6 +188,11 @@ def list_uploaded_documents() -> list[dict]:
                                 'category': get_document_category(stem),
                             }
                         )
+            
+            sorted_docs = sorted(documents, key=lambda x: x['title'])
+            _DOCUMENTS_CACHE = sorted_docs
+            _DOCUMENTS_CACHE_TIME = time.time()
+            return sorted_docs
         except Exception as e:
             print(f"Error listando uploads en R2: {e}")
         return sorted(documents, key=lambda x: x['title'])
@@ -1828,13 +1847,22 @@ def api_document_pdf(document_id: str, download: bool = Query(default=False)):
     if s3_client:
         # R2 mode: generate presigned URL
         try:
-            response = s3_client.list_objects_v2(Bucket=settings.bucket_name, Prefix=f"uploads/{document_id}")
-            matching_key = None
-            for obj in response.get('Contents', []):
-                key = obj['Key']
-                if Path(key).stem == document_id:
-                    matching_key = key
-                    break
+            # Check cached S3 keys map first for instant access
+            matching_key = _S3_KEY_CACHE.get(document_id)
+            if not matching_key:
+                # Cache miss: list objects matching prefix
+                response = s3_client.list_objects_v2(Bucket=settings.bucket_name, Prefix=f"uploads/{document_id}")
+                for obj in response.get('Contents', []):
+                    key = obj['Key']
+                    if Path(key).stem == document_id:
+                        matching_key = key
+                        _S3_KEY_CACHE[document_id] = key
+                        break
+
+            # If still not found, refresh cache
+            if not matching_key:
+                list_uploaded_documents()
+                matching_key = _S3_KEY_CACHE.get(document_id)
 
             if not matching_key:
                 raise HTTPException(status_code=404, detail="PDF no encontrado en R2")
@@ -2024,6 +2052,9 @@ def api_document_pdf(document_id: str, download: bool = Query(default=False)):
 
 @app.post('/api/subida-archivos', response_model=None)
 async def upload_files(request: Request, files: list[UploadFile] = File(...), index_to_meili: bool = Form(True)):
+    global _DOCUMENTS_CACHE
+    _DOCUMENTS_CACHE = None
+
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
     JSON_DIR.mkdir(parents=True, exist_ok=True)
